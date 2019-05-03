@@ -12,6 +12,14 @@ def sigmoid(z, derivative=False):
     else:
         return sig_res
 
+def calc_error_cross_entropy(activation, expected_digit):
+    # calculate the error of the ouput layer given cross entropy as the cost function
+    return activation - expected_digit
+
+def calc_error_quadratic_cost(weighted_sum, activation, expected_digit):
+    # calculate the error of the output layer given quadratic cost function
+    return (activation - expected_digit) * sigmoid(weighted_sum, derivative=True)
+
 class NeuralNetwork:
     """
     a simple neural net for hand written digit recognition.
@@ -21,13 +29,14 @@ class NeuralNetwork:
         self.dimensions = dimensions
         # randomly initialize weights and biases
         # i: number of neurons in layer l; j: number of neurons in layer l+1
-        self.weights = [np.random.randn(j, i) for i, j in zip(dimensions[:-1], dimensions[1:])]
+        # divide random intial value by np.sqrt(i) to make neurons less likely to saturate and avoid slow start
+        self.weights = [np.random.randn(j, i) / np.sqrt(i) for i, j in zip(dimensions[:-1], dimensions[1:])]
         # each activation has a bias associated with it (except input layer)
         self.biases = [np.random.randn(i, 1) for i in dimensions[1:]]
         # len(self.weights) == len(self.biases) == len(self.dimensions) - 1
 
 
-    def train(self, inputs, epochs, batch_size, learning_rate):
+    def train(self, inputs, epochs, batch_size, learning_rate, reg_param):
         """
         divide inputs into multiple batches and apply stochastic gradient decent
         Args:
@@ -43,11 +52,11 @@ class NeuralNetwork:
             # split inputs into batches, each batch contain batch_size training data
             batches = [training_data[start:start + batch_size] for start in range(0, len(training_data), batch_size)]
             for batch in batches:
-                self.process_batch(batch, learning_rate)
+                self.process_batch(batch, learning_rate, reg_param, len(training_data))
             self.test(validation_data)
 
 
-    def process_batch(self, batch, learning_rate):
+    def process_batch(self, batch, learning_rate, reg_param, n):
         accum_delta_weight = [np.zeros(weight.shape) for weight in self.weights]
         accum_delta_bias = [np.zeros(bias.shape) for bias in self.biases]
 
@@ -55,8 +64,8 @@ class NeuralNetwork:
             delta_weight, delta_bias = self.back_propagation(pixel_data, expected_digit)
             accum_delta_weight = [accum_w + delta_w for accum_w, delta_w in zip(accum_delta_weight, delta_weight)]
             accum_delta_bias = [accum_b + delta_b for accum_b, delta_b in zip(accum_delta_bias, delta_bias)]
-        
-        self.weights = [current_w - learning_rate * accum_w / len(batch) for current_w, accum_w in zip(self.weights, accum_delta_weight)]
+        # apply regularization
+        self.weights = [(1 - learning_rate * reg_param / n) * current_w - learning_rate * accum_w / len(batch) for current_w, accum_w in zip(self.weights, accum_delta_weight)]
         self.biases = [current_b - learning_rate * accum_b / len(batch) for current_b, accum_b in zip(self.biases, accum_delta_bias)]
 
 
@@ -72,7 +81,7 @@ class NeuralNetwork:
             activation = sigmoid(z)
             activations.append(activation)
         # calculate error for the output layer
-        error = (activations[-1] - expected_digit) * sigmoid(weighted_sums[-1], derivative=True)
+        error = calc_error_cross_entropy(activations[-1], expected_digit)
         delta_weight[-1] = np.dot(error, activations[-2].transpose())
         delta_bias[-1] = error
         # calculate error for remaining hidden layers
@@ -84,7 +93,7 @@ class NeuralNetwork:
         return (delta_weight, delta_bias)
     
     
-    def test(self, inputs):
+    def test(self, inputs, monitor=True):
         correct_count = 0
         for pixel_data, expected_digit in inputs:
             activation = pixel_data
@@ -92,10 +101,12 @@ class NeuralNetwork:
                 activation = sigmoid(np.dot(w, activation) + b)
             if np.argmax(activation) == np.argmax(expected_digit):
                 correct_count += 1
-        print("{0} / {1}".format(correct_count, len(inputs)))
+
+        if(monitor):
+            print("{0} / {1}".format(correct_count, len(inputs)))
 
 
 if __name__ == "__main__":
     inputs = parser.Parser().parse('./data/train-images-idx3-ubyte', './data/train-labels-idx1-ubyte')
     net = NeuralNetwork([784, 64, 10])
-    net.train(inputs, 5, 10, 1.)
+    net.train(inputs, 10, 10, 0.5, 1)
