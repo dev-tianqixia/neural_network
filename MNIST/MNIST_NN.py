@@ -22,7 +22,7 @@ def calc_error_quadratic_cost(weighted_sum, activation, expected_digit):
 
 class NeuralNetwork:
     """
-    a simple neural net for hand written digit recognition.
+    a simple neural net for MNIST hand written digit recognition.
     """
     def __init__(self, dimensions):
         # dimensions of the neural network: e.g. [784, 16, 10]
@@ -94,6 +94,10 @@ class NeuralNetwork:
     
     
     def test(self, inputs, monitor=True):
+        """
+        Returns:
+            the accuracy of prediction
+        """
         correct_count = 0
         for pixel_data, expected_digit in inputs:
             activation = pixel_data
@@ -104,6 +108,8 @@ class NeuralNetwork:
 
         if(monitor):
             print("{0} / {1}".format(correct_count, len(inputs)))
+        
+        return correct_count / len(inputs)
 
 
 if __name__ == "__main__":

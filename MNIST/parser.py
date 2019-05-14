@@ -15,8 +15,9 @@ class Parser:
             for _ in range(self.image_count):
                 # self.plot_next_image(f)
                 # represent the image as a column vector, convert elements are to the range of [0, 1.] to avoid overflow
-                images.append(np.array([bytearray(f.read(self.rows * self.cols))], dtype=np.uint8).transpose() / 255.)
-
+                images.append(np.array(bytearray(f.read(self.rows * self.cols)), dtype=np.uint8).transpose() / 255.)
+                # images.append(np.array([bytearray(f.read(self.rows * self.cols))], dtype=np.uint8).transpose() / 255.)
+        
         labels = []
         with open(label_file_path, 'rb') as f:
             # skip the magic number
@@ -24,11 +25,13 @@ class Parser:
             self.label_count = int.from_bytes(f.read(4), byteorder='big')
             assert self.image_count == self.label_count, 'number of images does not match number of labels'
             for _ in range(self.label_count):
-                label = np.zeros((10, 1))
+                label = np.zeros(10)
+                # label = np.zeros((10, 1))
                 label[int.from_bytes(f.read(1), byteorder='big')] = 1.
                 labels.append(label)
         
-        return [(image, label) for image, label in zip(images, labels)]
+        return (np.array(images), np.array(labels))
+        # return [(image, label) for image, label in zip(images, labels)]
 
 
     def plot_next_image(self, f):
